@@ -1,8 +1,8 @@
+import { Config } from "./config";
 import mongoose, { Schema, model } from "mongoose";
 
-mongoose.connect(
-  "mongodb+srv://ramenkar8:qTmxw23DMCPhEgc3@secondbrain.abzuag0.mongodb.net/brainly"
-);
+const mongoUri = Config.MONGODB_URI;
+mongoose.connect(mongoUri);
 
 const userSchema = new Schema({
   userName: {
@@ -17,14 +17,19 @@ const userSchema = new Schema({
 
 export const userModel = model("User", userSchema);
 
-const contentTypes = ["image", "video", "article", "audio"]; // Extend as needed
-
 const contentSchema = new Schema({
   link: { type: String, required: true },
-  type: { type: String, enum: contentTypes, required: true },
+  type: { type: String },
   title: { type: String, required: true },
-  tags: [{ type: mongoose.Types.ObjectId, ref: "Tag" }],
+  tags: { type: String },
   userId: { type: mongoose.Types.ObjectId, ref: "User", required: true },
 });
 
 export const contentModel = model("Content", contentSchema);
+
+const linkSchema = new Schema({
+  hash: String,
+  userId: { type: mongoose.Types.ObjectId, ref: "User", required: true },
+});
+
+export const linkModel = model("Links", linkSchema);

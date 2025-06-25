@@ -1,12 +1,16 @@
 import express from "express";
-import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
-import { contentModel, userModel } from "./db";
-import { JWT_PASSWORD } from "./config";
+import { contentModel, linkModel, userModel } from "./db";
+import { Config } from "./config";
 import { userMiddleware } from "./middleware";
+import { random } from "./utils";
+import cors from "cors";
 
 const app = express();
 app.use(express.json());
+app.use(cors());
+
+const JWT_PASSWORD = Config.JWT_PASSWORD;
 
 app.post("/api/v1/signup", async (req, res) => {
   const userName = req.body.userName;
@@ -55,7 +59,7 @@ app.post("/api/v1/signin", async (req, res) => {
 });
 
 app.post("/api/v1/content", userMiddleware, async (req, res) => {
-  const title = req.body.link;
+  const title = req.body.title;
   const link = req.body.link;
   const type = req.body.type;
 
@@ -65,7 +69,6 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
     type,
     //@ts-ignore
     userId: req.userId,
-    tags: [],
   });
 
   res.json({
@@ -99,8 +102,71 @@ app.delete("/api/v1/content", userMiddleware, async (req, res) => {
   }
 });
 
-app.post("/api/v1/brain/share", (req, res) => {});
+app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
+  const share = req.body.share;
 
-app.get("/api/v1/brain/:shareLink", (req, res) => {});
+  if (share) {
+    const existingLink = await linkModel.findOne({
+      //@ts-ignore
+      userId: req.userId,
+    });
+    if (existingLink) {
+      res.json({
+        //@ts-ignore
+        hash: existingLink.hash,
+      });
+      return;
+    }
+
+    const hash = random(10);
+    await linkModel.create({
+      //@ts-ignore
+      userId: req.userId,
+      hash: hash,
+    });
+
+    res.json({
+      hash: hash,
+    });
+  } else {
+    await linkModel.deleteOne({
+      //@ts-ignore
+      userId: req.userId,
+    });
+
+    res.json({
+      message: "Removed link",
+    });
+  }
+});
+
+app.get("/api/v1/brain/:shareLink", async (req, res) => {
+  const hash = req.params.shareLink;
+
+  const link = await linkModel.findOne({
+    hash,
+  });
+
+  if (!link) {
+    res.status(411).json({
+      message: "Sorry incorrect input",
+    });
+  }
+  const content = await contentModel.find({
+    //@ts-ignore
+    userId: link.userId,
+  });
+
+  const user = await userModel.findOne({
+    //@ts-ignore
+    _id: link.userId,
+  });
+
+  res.json({
+    //@ts-ignore
+    userName: user?.userName,
+    content: content,
+  });
+});
 
 app.listen(3000);
